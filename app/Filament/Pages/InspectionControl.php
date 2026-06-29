@@ -66,11 +66,35 @@ class InspectionControl extends Page implements HasForms
         if (session('inspection_hour_slot') !== $currentHourSlot) {
             session(['inspection_hour_slot' => $currentHourSlot]);
             $this->refreshAssignment($randomService);
-            $this->lastToastReminderKey = null;
+            $this->resetInspectionForm();
+            $this->lastToastReminderKey = $currentHourSlot.'-info';
+            $this->notifyHourSlotChanged($reminderService);
         }
 
         $this->checkLiveReminder($reminderService, $randomService);
         $this->refreshKpis();
+    }
+
+    public function reminderBannerMessage(): ?string
+    {
+        $level = $this->resolveReminderLevel();
+
+        if ($level === null) {
+            return null;
+        }
+
+        return app(InspectionReminderService::class)->getReminderBannerMessage($level);
+    }
+
+    protected function notifyHourSlotChanged(InspectionReminderService $reminderService): void
+    {
+        $message = $reminderService->getHourSlotChangedMessage();
+
+        Notification::make()
+            ->title($message['title'])
+            ->body($message['body'])
+            ->info()
+            ->send();
     }
 
     /**

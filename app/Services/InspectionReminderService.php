@@ -35,8 +35,8 @@ class InspectionReminderService
     public function getReminderLevel(): string
     {
         $minutes = now()->minute;
-        $urgentMinute = config('inspection.reminder_urgent_minute', 30);
-        $warningMinute = config('inspection.reminder_warning_minute', 15);
+        $urgentMinute = $this->urgentMinuteThreshold();
+        $warningMinute = $this->warningMinuteThreshold();
 
         if ($minutes >= $urgentMinute) {
             return 'urgent';
@@ -47,6 +47,16 @@ class InspectionReminderService
         }
 
         return 'info';
+    }
+
+    public function warningMinuteThreshold(): int
+    {
+        return config('inspection.reminder_warning_minute', 15);
+    }
+
+    public function urgentMinuteThreshold(): int
+    {
+        return config('inspection.reminder_urgent_minute', 30);
     }
 
     /**
@@ -61,16 +71,18 @@ class InspectionReminderService
             $hourSlot->format('H:i'),
             $hourSlot->copy()->addHour()->format('H:i'),
         );
+        $warningMinute = $this->warningMinuteThreshold();
+        $urgentMinute = $this->urgentMinuteThreshold();
 
         return match ($level) {
             'urgent' => [
                 'title' => 'Urgente: genera el random',
-                'body' => "Llevas más de 30 minutos sin generar el random de las {$range}.",
+                'body' => "Llevas más de {$urgentMinute} minutos sin generar el random de las {$range}.",
                 'color' => 'danger',
             ],
             'warning' => [
                 'title' => 'Recordatorio: random pendiente',
-                'body' => "Aún no se ha generado el random para las {$range}.",
+                'body' => "Ya pasaron {$warningMinute} minutos de esta hora sin generar el random ({$range}).",
                 'color' => 'warning',
             ],
             default => [
@@ -79,6 +91,37 @@ class InspectionReminderService
                 'color' => 'info',
             ],
         };
+    }
+
+    public function getReminderBannerMessage(?string $level = null): string
+    {
+        $level ??= $this->getReminderLevel();
+        $warningMinute = $this->warningMinuteThreshold();
+        $urgentMinute = $this->urgentMinuteThreshold();
+
+        return match ($level) {
+            'urgent' => "Urgente: llevas más de {$urgentMinute} minutos sin generar el random.",
+            'warning' => "Recordatorio: ya pasaron {$warningMinute} minutos de esta hora.",
+            default => 'Nueva hora: genera el random de inspección.',
+        };
+    }
+
+    /**
+     * @return array{title: string, body: string}
+     */
+    public function getHourSlotChangedMessage(): array
+    {
+        $hourSlot = $this->randomService->currentHourSlot();
+        $range = sprintf(
+            '%s – %s',
+            $hourSlot->format('H:i'),
+            $hourSlot->copy()->addHour()->format('H:i'),
+        );
+
+        return [
+            'title' => 'Nueva franja horaria',
+            'body' => "Franja {$range}. Genera el random de inspección para esta hora.",
+        ];
     }
 
     public function sendDatabaseReminders(): int

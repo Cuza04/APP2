@@ -92,4 +92,45 @@ class InspectionImprovementsTest extends TestCase
             'status' => \App\Enums\AssignmentStatus::Pending,
         ]);
     }
+
+    public function test_reminder_messages_use_configured_minute_thresholds(): void
+    {
+        config([
+            'inspection.reminder_warning_minute' => 10,
+            'inspection.reminder_urgent_minute' => 20,
+        ]);
+
+        $service = app(InspectionReminderService::class);
+
+        Carbon::setTestNow(Carbon::parse('2026-06-26 10:25:00', 'America/Bogota'));
+        $urgent = $service->getReminderMessage('urgent');
+        $this->assertStringContainsString('20 minutos', $urgent['body']);
+
+        Carbon::setTestNow(Carbon::parse('2026-06-26 10:12:00', 'America/Bogota'));
+        $warning = $service->getReminderMessage('warning');
+        $this->assertStringContainsString('10 minutos', $warning['body']);
+    }
+
+    public function test_reminder_banner_messages_use_configured_thresholds(): void
+    {
+        config([
+            'inspection.reminder_warning_minute' => 10,
+            'inspection.reminder_urgent_minute' => 20,
+        ]);
+
+        $service = app(InspectionReminderService::class);
+
+        $this->assertStringContainsString('20 minutos', $service->getReminderBannerMessage('urgent'));
+        $this->assertStringContainsString('10 minutos', $service->getReminderBannerMessage('warning'));
+    }
+
+    public function test_hour_slot_changed_message_includes_current_range(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-06-26 14:05:00', 'America/Bogota'));
+
+        $message = app(InspectionReminderService::class)->getHourSlotChangedMessage();
+
+        $this->assertSame('Nueva franja horaria', $message['title']);
+        $this->assertStringContainsString('14:00 – 15:00', $message['body']);
+    }
 }

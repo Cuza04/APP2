@@ -139,11 +139,7 @@
                     default => 'info',
                 };
 
-                $bannerMessage = match ($reminderLevel) {
-                    'urgent' => 'Urgente: llevas más de 30 minutos sin generar el random.',
-                    'warning' => 'Recordatorio: ya pasaron 15 minutos de esta hora.',
-                    default => 'Nueva hora: genera el random de inspección.',
-                };
+                $bannerMessage = $this->reminderBannerMessage();
             @endphp
 
             <x-filament::section
@@ -165,7 +161,7 @@
                             Pulsa <strong>Generar random</strong> y avisa por radio al oficial del carril que salga.
                         </p>
 
-                        @if ($reminderLevel !== null)
+                        @if ($reminderLevel !== null && $bannerMessage !== null)
                             <p class="text-sm font-medium text-black">
                                 {{ $bannerMessage }}
                                 <span class="text-black">({{ $minutesIntoHour }} min transcurridos)</span>
